@@ -7,12 +7,7 @@ import streamlit as st
 from google.genai import types
 from streamlit.errors import StreamlitSecretNotFoundError
 
-from auth import (
-    is_valid_otp_code,
-    normalize_phone_number,
-    send_verification_code,
-    verify_code,
-)
+from auth import normalize_phone_number
 import database
 import design_system
 import exercise_views
@@ -69,7 +64,6 @@ TWILIO_SETTINGS = {
     setting: read_secret(setting)
     for setting in whatsapp_service.REQUIRED_SETTINGS
 }
-TWILIO_VERIFY_SERVICE_SID = read_secret("TWILIO_VERIFY_SERVICE_SID")
 
 
 @st.cache_resource
@@ -367,66 +361,6 @@ def render_login_screen():
             unsafe_allow_html=True,
         )
 
-        pending_phone = st.session_state.get("pending_verification_phone")
-        if pending_phone:
-            st.info(f"Enter the 6-digit SMS code sent to {pending_phone}.")
-            with st.form("verify_phone_form"):
-                verification_code = st.text_input(
-                    "Verification code",
-                    max_chars=6,
-                    placeholder="123456",
-                )
-                verify_submitted = st.form_submit_button(
-                    "Verify phone",
-                    type="primary",
-                )
-                resend_submitted = st.form_submit_button("Resend code")
-
-            if resend_submitted:
-                sent, message = send_verification_code(
-                    pending_phone,
-                    "sms",
-                    TWILIO_VERIFY_SERVICE_SID,
-                    TWILIO_SETTINGS["TWILIO_ACCOUNT_SID"],
-                    TWILIO_SETTINGS["TWILIO_AUTH_TOKEN"],
-                )
-                if sent:
-                    st.success("A new verification code was sent.")
-                else:
-                    st.error(message)
-                return
-
-            if verify_submitted:
-                if not is_valid_otp_code(verification_code):
-                    st.warning("Enter the 6-digit code sent to your phone.")
-                    return
-
-                verified, message = verify_code(
-                    pending_phone,
-                    verification_code,
-                    TWILIO_VERIFY_SERVICE_SID,
-                    TWILIO_SETTINGS["TWILIO_ACCOUNT_SID"],
-                    TWILIO_SETTINGS["TWILIO_AUTH_TOKEN"],
-                )
-                if not verified:
-                    st.error(message)
-                    return
-
-                name = st.session_state.get("pending_verification_name", "")
-                st.session_state.pop("pending_verification_phone", None)
-                st.session_state.pop("pending_verification_name", None)
-                try:
-                    profile = database.get_user(pending_phone)
-                    if profile:
-                        activate_user(pending_phone, profile)
-                    else:
-                        st.session_state.setup_phone = pending_phone
-                        st.session_state.setup_name = name
-                    st.rerun()
-                except sqlite3.Error:
-                    st.error("We couldn't access your saved profile. Please try again.")
-            return
-
         with st.form("onboarding_form"):
             name = st.text_input("Your name (new profiles only)")
             country_code_col, phone_number_col = st.columns([1, 3], gap="small")
@@ -434,11 +368,11 @@ def render_login_screen():
                 st.text_input("Country code", value="+91", disabled=True)
             with phone_number_col:
                 phone_number = st.text_input(
-                    "Mobile number",
+                    "WhatsApp number",
                     placeholder="9989764628",
-                    help="Enter your 10-digit mobile number. We will send an SMS verification code.",
+                    help="Enter your 10-digit mobile number. +91 is added automatically.",
                 )
-            submitted = st.form_submit_button("Send verification code", type="primary")
+            submitted = st.form_submit_button("Let's go 🚀", use_container_width=True)
 
         if not submitted:
             return
@@ -450,27 +384,20 @@ def render_login_screen():
         if normalized_phone is None:
             st.warning("Enter a valid 10-digit Indian mobile number.")
             return
-        if not TWILIO_VERIFY_SERVICE_SID:
-            st.error(
-                "Phone verification is not configured. Add TWILIO_VERIFY_SERVICE_SID "
-                "to Streamlit secrets."
-            )
-            return
 
-        sent, message = send_verification_code(
-            normalized_phone,
-            "sms",
-            TWILIO_VERIFY_SERVICE_SID,
-            TWILIO_SETTINGS["TWILIO_ACCOUNT_SID"],
-            TWILIO_SETTINGS["TWILIO_AUTH_TOKEN"],
-        )
-        if not sent:
-            st.error(message)
-            return
-
-        st.session_state.pending_verification_phone = normalized_phone
-        st.session_state.pending_verification_name = name.strip()
-        st.rerun()
+        try:
+            profile = database.get_user(normalized_phone)
+            if profile:
+                activate_user(normalized_phone, profile)
+            elif name.strip():
+                st.session_state.setup_phone = normalized_phone
+                st.session_state.setup_name = name.strip()
+            else:
+                st.warning("Enter your name to set up a new profile.")
+                return
+            st.rerun()
+        except sqlite3.Error:
+            st.error("We couldn't access your saved profile. Please try again.")
 
 
 def render_profile_setup(phone, name):
@@ -484,12 +411,6 @@ def render_profile_setup(phone, name):
             st.warning("Please enter a valid 10-digit Indian mobile number.")
             st.stop()
         phone = normalize_phone
-
-    if not name.strip():
-        name = st.text_input("Your name", key="new_profile_name")
-        if not name.strip():
-            st.info("Add your name to continue setting up your profile.")
-            st.stop()
 
     brand_col, form_col = st.columns(
         [1.05, 0.95],
