@@ -22,6 +22,26 @@ From the project directory:
 
 If a local port is already in use by another service, Streamlit will fail with a port-occupied error. The project is configured to prefer port 8506 for local development.
 
+## Deploy on Streamlit Community Cloud
+
+Create an app from the `uttejk6/macrosnap` GitHub repository, select the `main` branch, and set `app.py` as the entry point. Add the required credentials under the app's **Settings → Secrets** before sharing its URL:
+
+```toml
+TWILIO_ACCOUNT_SID = "your-account-sid"
+TWILIO_AUTH_TOKEN = "your-auth-token"
+TWILIO_VERIFY_SERVICE_SID = "your-verify-service-sid"
+
+# Optional AI features
+GEMINI_API_KEY = "your-gemini-api-key"
+GEMINI_MODEL = "gemini-2.5-flash"
+
+# Optional WhatsApp reminders
+TWILIO_WHATSAPP_FROM = "whatsapp:+your-enabled-sender-number"
+TWILIO_CONTENT_SID = "your-approved-content-template-sid"
+```
+
+Phone sign-in requires an active Twilio Verify service that can send SMS to the user's number. Keep credentials in Cloud Secrets; never add them to the repository. Community Cloud's local filesystem is not durable storage, so the SQLite database may be reset when the app restarts. Use a persistent hosted database before relying on the deployment for real user records.
+
 ## Configure Twilio
 
 Keep credentials in `.streamlit/secrets.toml`. Replace every `XXXX` placeholder with a value from the corresponding provider; never commit this file.

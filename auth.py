@@ -1,7 +1,11 @@
+import logging
 import re
 from typing import Optional, Tuple
 
 from twilio.rest import Client as TwilioClient
+
+
+LOGGER = logging.getLogger("macrosnap.auth")
 
 
 def normalize_phone_number(phone_number, default_country_code: str = "+91") -> Optional[str]:
@@ -72,17 +76,20 @@ def get_twilio_verify_client(account_sid: str, auth_token: str):
         return None
     try:
         return TwilioClient(account_sid, auth_token)
-    except Exception:
+    except Exception as error:
+        LOGGER.warning("Twilio Verify client initialization failed (%s).", type(error).__name__)
         return None
 
 
 def send_verification_code(target: str, channel: str, verify_service_sid: str, account_sid: str, auth_token: str) -> Tuple[bool, str]:
-    if not target or not channel or not verify_service_sid:
-        return False, "Unable to send OTP right now. Please check your details and try again."
+    if not target:
+        return False, "Enter a valid phone number and try again."
+    if not channel or not verify_service_sid:
+        return False, "Phone verification is not configured. Check the Streamlit secrets."
 
     client = get_twilio_verify_client(account_sid, auth_token)
     if client is None:
-        return False, "Twilio Verify is not configured. Please check your secret values."
+        return False, "Phone verification is not configured. Check the Streamlit secrets."
 
     try:
         client.verify.v2.services(verify_service_sid).verifications.create(
@@ -90,7 +97,8 @@ def send_verification_code(target: str, channel: str, verify_service_sid: str, a
             channel=channel,
         )
         return True, "OTP sent successfully."
-    except Exception:
+    except Exception as error:
+        LOGGER.warning("Twilio Verify could not send a code (%s).", type(error).__name__)
         return False, "Unable to send OTP right now. Please check your details and try again."
 
 
@@ -99,11 +107,11 @@ def verify_code(target: str, otp_code: str, verify_service_sid: str, account_sid
         return False, "Please enter the 6-digit OTP."
 
     if not target or not verify_service_sid:
-        return False, "Unable to verify OTP right now. Please try again."
+        return False, "Phone verification is not configured. Check the Streamlit secrets."
 
     client = get_twilio_verify_client(account_sid, auth_token)
     if client is None:
-        return False, "Twilio Verify is not configured. Please check your secret values."
+        return False, "Phone verification is not configured. Check the Streamlit secrets."
 
     try:
         verification_check = client.verify.v2.services(verify_service_sid).verification_checks.create(
@@ -116,5 +124,6 @@ def verify_code(target: str, otp_code: str, verify_service_sid: str, account_sid
         if status in {"expired", "canceled"}:
             return False, "This OTP has expired. Please request a new OTP."
         return False, "Incorrect OTP. Please try again."
-    except Exception:
+    except Exception as error:
+        LOGGER.warning("Twilio Verify could not verify a code (%s).", type(error).__name__)
         return False, "Unable to verify OTP right now. Please try again."
