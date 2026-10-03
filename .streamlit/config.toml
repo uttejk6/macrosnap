@@ -1,0 +1,26 @@
+[server]
+port = 8506
+headless = true
+enableCORS = false
+
+[theme]
+base = "light"
+primaryColor = "#0F9D68"
+backgroundColor = "#F6F8FB"
+secondaryBackgroundColor = "#FFFFFF"
+textColor = "#172033"
+borderColor = "#E5E9EF"
+font = "DM Sans:https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap"
+headingFont = "Manrope:https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700&display=swap"
+baseRadius = "14px"
+buttonRadius = "11px"
+showWidgetBorder = true
+showSidebarBorder = true
+chartCategoricalColors = ["#0F9D68", "#18B77B", "#2F6B8A", "#D69E2E", "#6B7F72", "#D87562"]
+
+[theme.sidebar]
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#E9F8F1"
+textColor = "#172033"
+primaryColor = "#0F9D68"
+borderColor = "#E5E9EF"
