@@ -53,7 +53,17 @@ def read_secret(name, default=""):
     return str(value or "").strip()
 
 
-GEMINI_API_KEY = read_secret("GEMINI_API_KEY")
+def read_gemini_api_key():
+    try:
+        return str(st.secrets["GEMINI_API_KEY"] or "").strip()
+    except (KeyError, StreamlitSecretNotFoundError):
+        return ""
+
+
+GEMINI_API_KEY = read_gemini_api_key()
+GEMINI_NOT_CONFIGURED_MESSAGE = (
+    "Gemini is not configured. Please check your Streamlit secrets."
+)
 MODEL_NAME = read_secret("GEMINI_MODEL", gemini_service.DEFAULT_MODEL_NAME)
 MODEL_FALLBACKS = tuple(
     model.strip()
@@ -110,9 +120,7 @@ def normalize_indian_whatsapp_number(phone_number):
 
 def ask_gemini(parts):
     if gemini_client is None:
-        st.session_state.gemini_error_message = (
-            "Gemini is not configured. Add a valid GEMINI_API_KEY to Streamlit secrets."
-        )
+        st.session_state.gemini_error_message = GEMINI_NOT_CONFIGURED_MESSAGE
         return None
 
     response = None
@@ -150,9 +158,7 @@ def ask_gemini(parts):
 
 def generate_text(prompt, json_response=False):
     if gemini_client is None:
-        st.session_state.gemini_error_message = (
-            "Gemini is not configured. Add a valid GEMINI_API_KEY to Streamlit secrets."
-        )
+        st.session_state.gemini_error_message = GEMINI_NOT_CONFIGURED_MESSAGE
         return None
 
     system_instruction = (
@@ -209,9 +215,7 @@ def create_chat():
 
 def analyze_exercise_image(image_bytes, mime_type, goal, exercise, profile):
     if gemini_client is None:
-        st.session_state.gemini_error_message = (
-            "Gemini is not configured. Add a valid GEMINI_API_KEY to Streamlit secrets."
-        )
+        st.session_state.gemini_error_message = GEMINI_NOT_CONFIGURED_MESSAGE
         return None
 
     profile_context = {
@@ -255,9 +259,7 @@ def analyze_exercise_image(image_bytes, mime_type, goal, exercise, profile):
 
 def generate_meal_suggestion(prompt):
     if gemini_client is None:
-        st.session_state.gemini_error_message = (
-            "Gemini is not configured. Add a valid GEMINI_API_KEY to Streamlit secrets."
-        )
+        st.session_state.gemini_error_message = GEMINI_NOT_CONFIGURED_MESSAGE
         return None
     try:
         response, model_used = gemini_service.generate_content(
@@ -774,7 +776,9 @@ navigation = st.navigation(
 with st.sidebar:
     design_system.render_sidebar_account(st.session_state.name)
     if gemini_client is None:
-        st.caption("Gemini is not connected. Add GEMINI_API_KEY to enable AI meal features.")
+        st.caption("Gemini not configured. Check Streamlit secrets.")
+    else:
+        st.caption("Gemini configured ✓")
 
 try:
     navigation.run()

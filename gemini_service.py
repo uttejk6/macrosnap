@@ -7,8 +7,8 @@ from google.genai import types
 
 
 LOGGER = logging.getLogger("macrosnap.gemini")
-DEFAULT_MODEL_NAME = "gemini-3-flash-preview"
-TEMPORARY_ERROR_MARKERS = ("503", "unavailable", "resource_exhausted", "429")
+DEFAULT_MODEL_NAME = "gemini-2.5-flash"
+TEMPORARY_ERROR_MARKERS = ("503", "unavailable")
 MODEL_ERROR_MARKERS = (
     "not found",
     "does not exist",
@@ -127,7 +127,7 @@ def friendly_error_message(error):
             "Trying another model cannot bypass a project-wide quota."
         )
     if status == 503 or "unavailable" in message:
-        return "Gemini is temporarily unavailable. Please try again shortly."
+        return "Gemini is temporarily busy. Please try again in a few seconds."
     return "Gemini could not complete the request. Check the connection and API configuration, then try again."
 
 
@@ -266,7 +266,7 @@ def create_chat(
 
 def check_model(client, model_name, configured_fallbacks=()):
     if client is None:
-        return False, "Gemini is not configured. Add GEMINI_API_KEY to Streamlit secrets."
+        return False, "Gemini is not configured. Please check your Streamlit secrets."
     if not model_name:
         return False, "Set GEMINI_MODEL to the model name enabled for your API key."
 

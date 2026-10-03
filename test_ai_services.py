@@ -2,7 +2,7 @@ import json
 import unittest
 from datetime import date
 from types import SimpleNamespace
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import gemini_service
 import nutrition
@@ -15,6 +15,10 @@ class FakeGeminiModelError(Exception):
 
 class FakeGeminiQuotaError(Exception):
     code = 429
+
+
+class FakeGeminiUnavailableError(Exception):
+    code = 503
 
 
 class FakeTwilioError(Exception):
@@ -143,6 +147,38 @@ class GeminiServiceTests(unittest.TestCase):
         self.assertEqual(response.text, "OK")
         self.assertEqual(model_name, "gemini-supported-flash")
         self.assertEqual(client.models.generate_content.call_count, 3)
+
+    def test_temporary_503_retries_then_succeeds(self):
+        client = SimpleNamespace(
+            models=SimpleNamespace(
+                generate_content=Mock(
+                    side_effect=[
+                        FakeGeminiUnavailableError("service unavailable"),
+                        SimpleNamespace(text="OK"),
+                    ]
+                )
+            )
+        )
+
+        with patch("gemini_service.time.sleep"):
+            response, model_name = gemini_service.generate_content(
+                client,
+                "gemini-2.5-flash",
+                "Test",
+                "Test system prompt",
+            )
+
+        self.assertEqual(response.text, "OK")
+        self.assertEqual(model_name, "gemini-2.5-flash")
+        self.assertEqual(client.models.generate_content.call_count, 2)
+
+    def test_503_has_actionable_temporary_error_message(self):
+        self.assertEqual(
+            gemini_service.friendly_error_message(
+                FakeGeminiUnavailableError("service unavailable")
+            ),
+            "Gemini is temporarily busy. Please try again in a few seconds.",
+        )
 
     def test_json_response_parser_accepts_fenced_json(self):
         self.assertEqual(
