@@ -20,7 +20,7 @@ From the project directory:
 .\venv\Scripts\python.exe -m streamlit run app.py --server.port 8506
 ```
 
-If a local port is already in use by another service, Streamlit will fail with a port-occupied error. The project is configured to prefer port 8506 for local development.
+The local run command uses port 8506. Streamlit Community Cloud supplies its own port when it starts the app.
 
 ## Deploy on Streamlit Community Cloud
 
